@@ -29,12 +29,30 @@ import requests
 # pprint.pprint(response.json())
 
 
+import  requests,pprint
+
 payload = {
-    'username': 'Fino',
-    'password': '010125020307lot'
+        'username': 'Fino',
+        'password': '88888888ot'
+    }
+
+response = requests.post("http://localhost/api/mgr/signin",
+                             data=payload)
+
+retDict = response.json()
+
+sessionid = response.cookies['sessionid']
+
+# 再发送列出请求，注意多了 keywords
+payload = {
+    'action': 'list_medicine',
+    'pagenum': 1,
+    'pagesize' : 3,
+    'keywords' : '乳酸 注射液'
 }
 
-response = requests.post('http://localhost/api/mgr/signin',
-              data=payload)
+response = requests.get('http://localhost/api/mgr/medicines',
+              params=payload,
+              cookies={'sessionid': sessionid})
 
 pprint.pprint(response.json())

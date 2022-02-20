@@ -32,6 +32,9 @@ class Order(models.Model):
     # 订单购买的药品，和Medicine表是多对多 的关系
     medicines = models.ManyToManyField(Medicine, through='OrderMedicine')
 
+    # 为了提高效率，这里存放 订单 medicines 冗余数据
+    medicinelist = models.CharField(max_length=2000, null=True, blank=True)
+
 
 class OrderMedicine(models.Model):
     order = models.ForeignKey(Order, on_delete=models.PROTECT)

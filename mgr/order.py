@@ -1,3 +1,5 @@
+import traceback
+
 from django.http import JsonResponse
 from django.db.models import F
 from django.db import IntegrityError, transaction
@@ -12,46 +14,65 @@ def addorder(request):
     info = request.params['data']
 
     with transaction.atomic():
+        medicinelist  = info['medicinelist']
+
         new_order = Order.objects.create(name=info['name'],
-                                       customer_id=info['customerid'])
-        batch = [OrderMedicine(order_id=new_order.id,medicine_id=mid,amount=1)
-               for mid in info['medicineids']]
+            customer_id=info['customerid'],
+            # 写入json格式的药品数据到 medicinelist 字段中
+            medicinelist=json.dumps(medicinelist,ensure_ascii=False),)
+
+        batch = [OrderMedicine(order_id=new_order.id,
+                               medicine_id=medicine['id'],
+                               amount=medicine['amount'])
+                 for medicine in medicinelist]
 
         OrderMedicine.objects.bulk_create(batch)
+
     return JsonResponse({'ret': 0, 'id': new_order.id})
 
 def listorder(request):
-    # 返回一个QuerySet对象，包含所有表的记录
-    qs = Order.objects\
+    qs = Order.objects \
         .annotate(
-            # ---重命名
-            customer_name=F('customer__name'),
-            medicines_name=F('medicines__name')
+                customer_name=F('customer__name')
         )\
-        .values('id','name','create_date',
-                              # 两个下划线，表示取customer外键关联的表中的name字段的值
-                              'customer__name',
-                              'medicines_name'
-                        )
+        .values(
+        'id', 'name', 'create_date',
+        'customer_name',
+        'medicinelist'
+    )
+
+    # 将 QuerySet 对象 转化为 list 类型
     retlist = list(qs)
 
-    #----可能有ID相同，药品不同的订单记录，需要合并
-    newlist = []
-    id2order = {}
-    for one in retlist:
-        orderid = one['id']
-        if orderid not in id2order:
-            newlist.append(one)
-            id2order[orderid] = one
-        else:
-            id2order[orderid]['medicines_name'] += '|' + one['medicines_name']
+    return JsonResponse({'ret': 0, 'retlist': retlist})
 
-    return JsonResponse({'ret': 0, 'retlist': newlist})
+def deleteorder(request):
+    # 获取订单ID
+    oid = request.params['id']
+    try:
+        one = Order.objects.get(id=oid)
+        with transaction.atomic():
+            # 一定要先删除 OrderMedicine 里面的记录
+            OrderMedicine.objects.filter(order_id=oid).delete()
+            # 再删除订单记录
+            one.delete()
 
+        return JsonResponse({'ret': 0, 'id': oid})
+
+    except Order.DoesNotExist:
+        return JsonResponse({
+            'ret': 1,
+            'msg': f'id 为`{oid}`的订单不存在'
+        })
+
+    except:
+        err = traceback.format_exc()
+        return JsonResponse({'ret': 1, 'msg': err})
 
 Action2Handler = {
     'list_order': listorder,
-    'add_order': addorder
+    'add_order': addorder,
+    'delete_order': deleteorder
 }
 
 def dispatcher(request):
