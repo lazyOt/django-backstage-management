@@ -22,6 +22,7 @@ def addcustomer(request):
                                      address=info['address'])
     return JsonResponse({'ret': 0, 'id': record.id})
 
+
 def modifycustomer(request):
     # 从请求消息中，获取修改客户的信息
     # 找到该客户 操作

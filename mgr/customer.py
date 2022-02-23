@@ -9,7 +9,7 @@ Action2Handler = {
     'list_customer': listcustomers,
     'add_customer': addcustomer,
     'modify_customer': modifycustomer,
-    'del_customer': deletecustomer,
+    'del_customer': deletecustomer
 }
 
 def dispatcher(request):
